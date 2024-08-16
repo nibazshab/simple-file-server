@@ -17,6 +17,8 @@ var (
 	root *string
 )
 
+var Version string
+
 type InfoShow struct {
 	Name string
 	Time string
@@ -35,6 +37,7 @@ func main() {
 	root = flag.String("path", "./", "server root path")
 	flag.Parse()
 
+	fmt.Println("Version: " + Version)
 	fmt.Println("start HTTP server @ 0.0.0.0:" + *port + "\n" + "load storage @ " + *root)
 
 	http.HandleFunc("/", fileServer)

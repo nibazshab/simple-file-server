@@ -3,7 +3,7 @@ name: Releases
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*'
 
 permissions:
   contents: write
@@ -21,8 +21,8 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ runner.os }}-golang-
+        key: ${{ runner.os }}-golang
+        restore-keys: ${{ runner.os }}-golang
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -30,10 +30,12 @@ jobs:
         go-version-file: go.mod
 
     - name: Build
-      run: go build -ldflags="-s -w" -v ./...
+      run: chmod +x build.sh && ./build.sh
 
-    - name: tar.gz
-      run: mkdir dist && tar -czvf dist/sfs-linux-amd64.tar.gz sfs
+    - name: Package
+      run: |
+        mkdir dist && tar -czvf dist/sfs-linux-amd64.tar.gz sfs
+        mv sfs.exe dist/sfs-windows-amd64.exe
 
     - name: Upload Release
       uses: softprops/action-gh-release@v2
