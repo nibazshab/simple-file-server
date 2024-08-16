@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -58,6 +59,13 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 
 	if file.Info.IsDir() {
 		fileLists, _ := file.Obj.Readdir(-1)
+
+		sort.SliceStable(fileLists, func(i, j int) bool {
+			if fileLists[i].IsDir() == fileLists[j].IsDir() {
+				return fileLists[i].Name() < fileLists[j].Name()
+			}
+			return fileLists[i].IsDir() && !fileLists[j].IsDir()
+		})
 
 		indexof := req.URL.Path
 		var lastdir string
