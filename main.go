@@ -42,18 +42,17 @@ func FileServer(w http.ResponseWriter, req *http.Request) {
 		files, _ := file.Readdir(-1)
 
 		w.Write([]byte("<html><pre><a href=\"../\">../</a>" + "\n"))
-
 		for _, f := range files {
 			var list string
 
 			fileTime := f.ModTime().Format("2006-01-02 15:04:05")
+			lenName := max(45-len(f.Name()), 4)
+
 			if f.IsDir() {
-				lenName := 45 - len(f.Name())
 				list = "<a href=\"" + path.Join(req.URL.Path, f.Name()) + "\">" + f.Name() + "/</a>" + strings.Repeat(" ", lenName-1) + fileTime
 			} else {
 				fileSize := strconv.FormatInt(f.Size(), 10)
-				lenName := 45 - len(f.Name())
-				lenSize := 16 - len(fileSize)
+				lenSize := max(15-len(fileSize), 4)
 				list = "<a href=\"" + path.Join(req.URL.Path, f.Name()) + "\">" + f.Name() + "</a>" + strings.Repeat(" ", lenName) + fileTime + strings.Repeat(" ", lenSize) + fileSize
 			}
 
