@@ -36,11 +36,11 @@ func main() {
 
 	fmt.Println("start HTTP server @ 0.0.0.0:" + *port + "\n" + "load storage @ " + *root)
 
-	http.HandleFunc("/", FileServer)
+	http.HandleFunc("/", fileServer)
 	http.ListenAndServe(":"+*port, nil)
 }
 
-func FileServer(w http.ResponseWriter, req *http.Request) {
+func fileServer(w http.ResponseWriter, req *http.Request) {
 	var file FileInfo
 	var info InfoShow
 
