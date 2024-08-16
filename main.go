@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -15,51 +16,79 @@ var (
 	root *string
 )
 
+type InfoShow struct {
+	Name string
+	Time string
+	Size string
+	Path string
+}
+
+type FileInfo struct {
+	Path string
+	Obj  *os.File
+	Info fs.FileInfo
+}
+
 func main() {
 	port = flag.String("port", "8080", "server port")
 	root = flag.String("path", "./", "server root path")
 	flag.Parse()
 
-	fmt.Println("port=" + *port + "\n" + "path=" + *root)
+	fmt.Println("start HTTP server @ 0.0.0.0:" + *port + "\n" + "load storage @ " + *root)
 
 	http.HandleFunc("/", FileServer)
 	http.ListenAndServe(":"+*port, nil)
 }
 
 func FileServer(w http.ResponseWriter, req *http.Request) {
-	filePath := path.Join(*root, req.URL.Path)
+	var file FileInfo
+	var info InfoShow
 
-	file, err := os.Open(filePath)
+	file.Path = path.Join(*root, req.URL.Path)
+
+	var err error
+	file.Obj, err = os.Open(file.Path)
 	if err != nil {
 		http.NotFound(w, req)
 		return
 	}
-	defer file.Close()
+	defer file.Obj.Close()
 
-	f, _ := file.Stat()
+	file.Info, _ = file.Obj.Stat()
 
-	if f.IsDir() {
-		files, _ := file.Readdir(-1)
+	if file.Info.IsDir() {
+		fileLists, _ := file.Obj.Readdir(-1)
 
 		w.Write([]byte("<html><pre><a href=\"../\">../</a>" + "\n"))
-		for _, f := range files {
+		for _, f := range fileLists {
 			var list string
 
-			fileTime := f.ModTime().Format("2006-01-02 15:04:05")
-			lenName := max(45-len(f.Name()), 4)
+			info.Time = f.ModTime().Format("2006-01-02 15:04:05")
+			info.Name = f.Name()
+			info.Path = path.Join(req.URL.Path, info.Name)
+
+			lenName := max(45-len(info.Name), 4)
 
 			if f.IsDir() {
-				list = "<a href=\"" + path.Join(req.URL.Path, f.Name()) + "\">" + f.Name() + "/</a>" + strings.Repeat(" ", lenName-1) + fileTime
+				list = "<a href=\"" + info.Path + "\">" + info.Name + "/</a>" + strings.Repeat(" ", lenName-1) + info.Time
 			} else {
-				fileSize := strconv.FormatInt(f.Size(), 10)
-				lenSize := max(15-len(fileSize), 4)
-				list = "<a href=\"" + path.Join(req.URL.Path, f.Name()) + "\">" + f.Name() + "</a>" + strings.Repeat(" ", lenName) + fileTime + strings.Repeat(" ", lenSize) + fileSize
+				infoSize := f.Size()
+				if infoSize > 10240 {
+					infoSize >>= 10
+					info.Size = strconv.FormatInt(infoSize, 10) + "kb"
+				} else {
+					info.Size = strconv.FormatInt(infoSize, 10)
+				}
+
+				lenSize := max(15-len(info.Size), 4)
+
+				list = "<a href=\"" + info.Path + "\">" + info.Name + "</a>" + strings.Repeat(" ", lenName) + info.Time + strings.Repeat(" ", lenSize) + info.Size
 			}
 
 			w.Write([]byte(list + "\n"))
 		}
 		w.Write([]byte("</pre></html>"))
 	} else {
-		http.ServeContent(w, req, f.Name(), f.ModTime(), file)
+		http.ServeContent(w, req, file.Info.Name(), file.Info.ModTime(), file.Obj)
 	}
 }
