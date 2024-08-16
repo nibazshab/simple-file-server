@@ -59,7 +59,17 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 	if file.Info.IsDir() {
 		fileLists, _ := file.Obj.Readdir(-1)
 
-		w.Write([]byte("<html><pre><a href=\"../\">../</a>" + "\n"))
+		indexof := req.URL.Path
+		var lastdir string
+
+		if indexof == "/" {
+			lastdir = indexof
+		} else {
+			lastdir = path.Dir(indexof)
+			indexof += "/"
+		}
+
+		w.Write([]byte("<html><h1>Index of " + indexof + "</h1><hr/><pre><a href=\"" + lastdir + "\">../</a>" + "\n"))
 		for _, f := range fileLists {
 			var list string
 
@@ -67,10 +77,11 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 			info.Name = f.Name()
 			info.Path = path.Join(req.URL.Path, info.Name)
 
-			lenName := max(45-len(info.Name), 4)
+			lenName := max(51-len(info.Name), 1)
+			lenSize := 20
 
 			if f.IsDir() {
-				list = "<a href=\"" + info.Path + "\">" + info.Name + "/</a>" + strings.Repeat(" ", lenName-1) + info.Time
+				list = "<a href=\"" + info.Path + "\">" + info.Name + "/</a>" + strings.Repeat(" ", lenName-1) + info.Time + strings.Repeat(" ", lenSize-1) + "-"
 			} else {
 				infoSize := f.Size()
 				if infoSize > 10240 {
@@ -80,14 +91,13 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 					info.Size = strconv.FormatInt(infoSize, 10)
 				}
 
-				lenSize := max(15-len(info.Size), 4)
-
+				lenSize = max(lenSize-len(info.Size), 1)
 				list = "<a href=\"" + info.Path + "\">" + info.Name + "</a>" + strings.Repeat(" ", lenName) + info.Time + strings.Repeat(" ", lenSize) + info.Size
 			}
 
 			w.Write([]byte(list + "\n"))
 		}
-		w.Write([]byte("</pre></html>"))
+		w.Write([]byte("</pre><hr/></html>"))
 	} else {
 		http.ServeContent(w, req, file.Info.Name(), file.Info.ModTime(), file.Obj)
 	}
