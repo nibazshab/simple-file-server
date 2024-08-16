@@ -30,7 +30,10 @@ jobs:
         go-version-file: go.mod
 
     - name: Build
-      run: go build -v -o dist/ ./...
+      run: go build -ldflags="-s -w" -v ./...
+
+    - name: tar.gz
+      run: mkdir dist && tar -czvf dist/sfs-linux-amd64.tar.gz sfs
 
     - name: Upload Release
       uses: softprops/action-gh-release@v2
