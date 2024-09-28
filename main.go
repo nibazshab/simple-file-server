@@ -12,12 +12,12 @@ import (
 	"strings"
 )
 
+var Version string
+
 var (
 	Port *string
 	Root *string
 )
-
-var Version string
 
 type File struct {
 	Path string
@@ -92,8 +92,6 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("<html><h1>Index of " + o.Index + "</h1><hr/><pre><a href=\"" + o.LastIndex + "\">../</a>" + "\n"))
 		for _, _f := range f.List {
 			var li string
-			var sn string
-			var sl string
 
 			m.Name = _f.Name()
 			m.Url = path.Join(req.URL.Path, m.Name)
@@ -102,8 +100,8 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 			m.SizeLength = 19
 
 			if _f.IsDir() {
-				sn = strings.Repeat(" ", m.NameLength)
-				sl = strings.Repeat(" ", m.SizeLength)
+				sn := strings.Repeat(" ", m.NameLength)
+				sl := strings.Repeat(" ", m.SizeLength)
 				li = "<a href=\"" + m.Url + "\">" + m.Name + "/</a>" + sn + m.Time + sl + "-"
 			} else {
 				_size := _f.Size()
@@ -114,8 +112,8 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 					m.Size = strconv.FormatInt(_size, 10)
 				}
 
-				sn = strings.Repeat(" ", m.NameLength+1)
-				sl = strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
+				sn := strings.Repeat(" ", m.NameLength+1)
+				sl := strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
 				li = "<a href=\"" + m.Url + "\">" + m.Name + "</a>" + sn + m.Time + sl + m.Size
 			}
 			w.Write([]byte(li + "\n"))
