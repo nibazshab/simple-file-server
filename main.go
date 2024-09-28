@@ -13,103 +13,115 @@ import (
 )
 
 var (
-	port *string
-	root *string
+	Port *string
+	Root *string
 )
 
 var Version string
 
-type InfoShow struct {
-	Name string
-	Time string
-	Size string
-	Path string
-}
-
-type FileInfo struct {
+type File struct {
 	Path string
 	Obj  *os.File
 	Info fs.FileInfo
+	List []os.FileInfo
+}
+
+type Meta struct {
+	Name       string
+	Url        string
+	Time       string
+	Size       string
+	NameLength int
+	SizeLength int
+}
+
+type IndexOf struct {
+	Index     string
+	LastIndex string
 }
 
 func main() {
-	port = flag.String("port", "8080", "server port")
-	root = flag.String("path", "./", "server root path")
+	Port = flag.String("port", "8080", "server port")
+	Root = flag.String("path", "./", "server root path")
 	flag.Parse()
 
 	fmt.Println("Version: " + Version)
-	fmt.Println("start HTTP server @ 0.0.0.0:" + *port + "\n" + "load storage @ " + *root)
+	fmt.Println("start HTTP server @ 0.0.0.0:" + *Port + "\n" + "load storage @ " + *Root)
 
 	http.HandleFunc("/", fileServer)
-	http.ListenAndServe(":"+*port, nil)
+	err := http.ListenAndServe(":"+*Port, nil)
+	if err != nil {
+		fmt.Printf("start error: %v", err)
+		os.Exit(1)
+	}
 }
 
 func fileServer(w http.ResponseWriter, req *http.Request) {
-	var file FileInfo
-	var info InfoShow
+	var f File
+	var m Meta
+	var o IndexOf
 
-	file.Path = path.Join(*root, req.URL.Path)
+	f.Path = path.Join(*Root, req.URL.Path)
 
 	var err error
-	file.Obj, err = os.Open(file.Path)
+	f.Obj, err = os.Open(f.Path)
 	if err != nil {
 		http.NotFound(w, req)
 		return
 	}
-	defer file.Obj.Close()
+	defer f.Obj.Close()
 
-	file.Info, _ = file.Obj.Stat()
-
-	if file.Info.IsDir() {
-		fileLists, _ := file.Obj.Readdir(-1)
-
-		sort.SliceStable(fileLists, func(i, j int) bool {
-			if fileLists[i].IsDir() == fileLists[j].IsDir() {
-				return fileLists[i].Name() < fileLists[j].Name()
+	f.Info, _ = f.Obj.Stat()
+	if f.Info.IsDir() {
+		f.List, _ = f.Obj.Readdir(-1)
+		sort.SliceStable(f.List, func(i, j int) bool {
+			if f.List[i].IsDir() == f.List[j].IsDir() {
+				return f.List[i].Name() < f.List[j].Name()
 			}
-			return fileLists[i].IsDir() && !fileLists[j].IsDir()
+			return f.List[i].IsDir() && !f.List[j].IsDir()
 		})
 
-		indexof := req.URL.Path
-		var lastdir string
-
-		if indexof == "/" {
-			lastdir = indexof
+		o.Index = req.URL.Path
+		if o.Index == "/" {
+			o.LastIndex = o.Index
 		} else {
-			lastdir = path.Dir(indexof)
-			indexof += "/"
+			o.LastIndex = path.Dir(o.Index)
+			o.Index += "/"
 		}
 
-		w.Write([]byte("<html><h1>Index of " + indexof + "</h1><hr/><pre><a href=\"" + lastdir + "\">../</a>" + "\n"))
-		for _, f := range fileLists {
-			var list string
+		w.Write([]byte("<html><h1>Index of " + o.Index + "</h1><hr/><pre><a href=\"" + o.LastIndex + "\">../</a>" + "\n"))
+		for _, _f := range f.List {
+			var li string
+			var sn string
+			var sl string
 
-			info.Time = f.ModTime().Format("2006-01-02 15:04:05")
-			info.Name = f.Name()
-			info.Path = path.Join(req.URL.Path, info.Name)
+			m.Name = _f.Name()
+			m.Url = path.Join(req.URL.Path, m.Name)
+			m.Time = _f.ModTime().Format("2006-01-02 15:04:05")
+			m.NameLength = max(50-len(m.Name), 1)
+			m.SizeLength = 19
 
-			lenName := max(51-len(info.Name), 1)
-			lenSize := 20
-
-			if f.IsDir() {
-				list = "<a href=\"" + info.Path + "\">" + info.Name + "/</a>" + strings.Repeat(" ", lenName-1) + info.Time + strings.Repeat(" ", lenSize-1) + "-"
+			if _f.IsDir() {
+				sn = strings.Repeat(" ", m.NameLength)
+				sl = strings.Repeat(" ", m.SizeLength)
+				li = "<a href=\"" + m.Url + "\">" + m.Name + "/</a>" + sn + m.Time + sl + "-"
 			} else {
-				infoSize := f.Size()
-				if infoSize > 10240 {
-					infoSize >>= 10
-					info.Size = strconv.FormatInt(infoSize, 10) + "kb"
+				_size := _f.Size()
+				if _size > 10240 {
+					_size >>= 10
+					m.Size = strconv.FormatInt(_size, 10) + "kb"
 				} else {
-					info.Size = strconv.FormatInt(infoSize, 10)
+					m.Size = strconv.FormatInt(_size, 10)
 				}
 
-				lenSize = max(lenSize-len(info.Size), 1)
-				list = "<a href=\"" + info.Path + "\">" + info.Name + "</a>" + strings.Repeat(" ", lenName) + info.Time + strings.Repeat(" ", lenSize) + info.Size
+				sn = strings.Repeat(" ", m.NameLength+1)
+				sl = strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
+				li = "<a href=\"" + m.Url + "\">" + m.Name + "</a>" + sn + m.Time + sl + m.Size
 			}
-
-			w.Write([]byte(list + "\n"))
+			w.Write([]byte(li + "\n"))
 		}
 		w.Write([]byte("</pre><hr/></html>"))
 	} else {
-		http.ServeContent(w, req, file.Info.Name(), file.Info.ModTime(), file.Obj)
+		http.ServeContent(w, req, f.Info.Name(), f.Info.ModTime(), f.Obj)
 	}
 }
