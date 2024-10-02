@@ -45,8 +45,8 @@ func main() {
 	Root = flag.String("path", "./", "server root path")
 	flag.Parse()
 
-	fmt.Println("Version: " + Version)
-	fmt.Println("start HTTP server @ 0.0.0.0:" + *Port + "\n" + "load storage @ " + *Root)
+	fmt.Printf("Version: %s\n", Version)
+	fmt.Printf("start HTTP server @ 0.0.0.0:%s\nload storage @ %s", *Port, *Root)
 
 	http.HandleFunc("/", fileServer)
 	err := http.ListenAndServe(":"+*Port, nil)
@@ -89,7 +89,8 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 			o.Index += "/"
 		}
 
-		w.Write([]byte("<html><h1>Index of " + o.Index + "</h1><hr/><pre><a href=\"" + o.LastIndex + "\">../</a>" + "\n"))
+		head := fmt.Sprintf("<html><h1>Index of %s</h1><hr/><pre><a href=\"%s\">../</a>\n", o.Index, o.LastIndex)
+		w.Write([]byte(head))
 		for _, _f := range f.List {
 			var li string
 
@@ -102,7 +103,7 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 			if _f.IsDir() {
 				sn := strings.Repeat(" ", m.NameLength)
 				sl := strings.Repeat(" ", m.SizeLength)
-				li = "<a href=\"" + m.Url + "\">" + m.Name + "/</a>" + sn + m.Time + sl + "-"
+				li = fmt.Sprintf("<a href=\"%s\">%s/</a>%s%s%s-\n", m.Url, m.Name, sn, m.Time, sl)
 			} else {
 				_size := _f.Size()
 				if _size > 10240 {
@@ -114,9 +115,9 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 
 				sn := strings.Repeat(" ", m.NameLength+1)
 				sl := strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
-				li = "<a href=\"" + m.Url + "\">" + m.Name + "</a>" + sn + m.Time + sl + m.Size
+				li = fmt.Sprintf("<a href=\"%s\">%s</a>%s%s%s%s\n", m.Url, m.Name, sn, m.Time, sl, m.Size)
 			}
-			w.Write([]byte(li + "\n"))
+			w.Write([]byte(li))
 		}
 		w.Write([]byte("</pre><hr/></html>"))
 	} else {
