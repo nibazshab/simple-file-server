@@ -90,7 +90,7 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 		}
 
 		head := fmt.Sprintf("<html><h1>Index of %s</h1><hr/><pre><a href=\"%s\">../</a>\n", o.Index, o.LastIndex)
-		w.Write([]byte(head))
+		_, _ = w.Write([]byte(head))
 		for _, _f := range f.List {
 			var li string
 
@@ -117,9 +117,9 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 				sl := strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
 				li = fmt.Sprintf("<a href=\"%s\">%s</a>%s%s%s%s\n", m.Url, m.Name, sn, m.Time, sl, m.Size)
 			}
-			w.Write([]byte(li))
+			_, _ = w.Write([]byte(li))
 		}
-		w.Write([]byte("</pre><hr/></html>"))
+		_, _ = w.Write([]byte("</pre><hr/></html>"))
 	} else {
 		http.ServeContent(w, req, f.Info.Name(), f.Info.ModTime(), f.Obj)
 	}
