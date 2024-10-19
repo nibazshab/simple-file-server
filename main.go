@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -18,27 +17,6 @@ var (
 	Port *string
 	Root *string
 )
-
-type File struct {
-	Path string
-	Obj  *os.File
-	Info fs.FileInfo
-	List []os.FileInfo
-}
-
-type Meta struct {
-	Name       string
-	Url        string
-	Time       string
-	Size       string
-	NameLength int
-	SizeLength int
-}
-
-type IndexOf struct {
-	Index     string
-	LastIndex string
-}
 
 func main() {
 	Port = flag.String("port", "8080", "server port")
@@ -57,70 +35,68 @@ func main() {
 }
 
 func fileServer(w http.ResponseWriter, req *http.Request) {
-	var f File
-	var m Meta
-	var o IndexOf
-
-	f.Path = path.Join(*Root, req.URL.Path)
-
-	var err error
-	f.Obj, err = os.Open(f.Path)
+	fPath := path.Join(*Root, req.URL.Path)
+	fObj, err := os.Open(fPath)
 	if err != nil {
 		http.NotFound(w, req)
 		return
 	}
-	defer f.Obj.Close()
+	defer fObj.Close()
+	fInfo, _ := fObj.Stat()
 
-	f.Info, _ = f.Obj.Stat()
-	if f.Info.IsDir() {
-		f.List, _ = f.Obj.Readdir(-1)
-		sort.SliceStable(f.List, func(i, j int) bool {
-			if f.List[i].IsDir() == f.List[j].IsDir() {
-				return f.List[i].Name() < f.List[j].Name()
+	if fInfo.IsDir() {
+		fList, _ := fObj.Readdir(-1)
+		sort.SliceStable(fList, func(i, j int) bool {
+			if fList[i].IsDir() == fList[j].IsDir() {
+				return fList[i].Name() < fList[j].Name()
 			}
-			return f.List[i].IsDir() && !f.List[j].IsDir()
+			return fList[i].IsDir() && !fList[j].IsDir()
 		})
 
-		o.Index = req.URL.Path
-		if o.Index == "/" {
-			o.LastIndex = o.Index
+		var oLastIndex string
+		oIndex := req.URL.Path
+		if oIndex == "/" {
+			oLastIndex = oIndex
 		} else {
-			o.LastIndex = path.Dir(o.Index)
-			o.Index += "/"
+			oLastIndex = path.Dir(oIndex)
+			oIndex += "/"
 		}
 
-		head := fmt.Sprintf("<html><h1>Index of %s</h1><hr/><pre><a href=\"%s\">../</a>\n", o.Index, o.LastIndex)
+		head := fmt.Sprintf("<html><h1>Index of %s</h1><hr/><pre><a href=\"%s\">../</a>\n", oIndex, oLastIndex)
 		_, _ = w.Write([]byte(head))
-		for _, _f := range f.List {
-			var li string
 
-			m.Name = _f.Name()
-			m.Url = path.Join(req.URL.Path, m.Name)
-			m.Time = _f.ModTime().Format("2006-01-02 15:04:05")
-			m.NameLength = max(50-len(m.Name), 1)
-			m.SizeLength = 19
+		for _, _f := range fList {
+			var li string
+			mName := _f.Name()
+			mUrl := path.Join(req.URL.Path, mName)
+			mTime := _f.ModTime().Format("2006-01-02 15:04:05")
+			mNameLength := max(50-len(mName), 1)
+			mSizeLength := 19
 
 			if _f.IsDir() {
-				sn := strings.Repeat(" ", m.NameLength)
-				sl := strings.Repeat(" ", m.SizeLength)
-				li = fmt.Sprintf("<a href=\"%s\">%s/</a>%s%s%s-\n", m.Url, m.Name, sn, m.Time, sl)
+				sn := strings.Repeat(" ", mNameLength)
+				sl := strings.Repeat(" ", mSizeLength)
+				li = fmt.Sprintf("<a href=\"%s\">%s/</a>%s%s%s-\n", mUrl, mName, sn, mTime, sl)
 			} else {
+				var mSize string
 				_size := _f.Size()
+
 				if _size > 10240 {
 					_size >>= 10
-					m.Size = strconv.FormatInt(_size, 10) + "kb"
+					mSize = strconv.FormatInt(_size, 10) + "kb"
 				} else {
-					m.Size = strconv.FormatInt(_size, 10)
+					mSize = strconv.FormatInt(_size, 10)
 				}
 
-				sn := strings.Repeat(" ", m.NameLength+1)
-				sl := strings.Repeat(" ", max(m.SizeLength-len(m.Size), 1)+1)
-				li = fmt.Sprintf("<a href=\"%s\">%s</a>%s%s%s%s\n", m.Url, m.Name, sn, m.Time, sl, m.Size)
+				sn := strings.Repeat(" ", mNameLength+1)
+				sl := strings.Repeat(" ", max(mSizeLength-len(mSize), 1)+1)
+				li = fmt.Sprintf("<a href=\"%s\">%s</a>%s%s%s%s\n", mUrl, mName, sn, mTime, sl, mSize)
 			}
+
 			_, _ = w.Write([]byte(li))
 		}
 		_, _ = w.Write([]byte("</pre><hr/></html>"))
 	} else {
-		http.ServeContent(w, req, f.Info.Name(), f.Info.ModTime(), f.Obj)
+		http.ServeContent(w, req, fInfo.Name(), fInfo.ModTime(), fObj)
 	}
 }
