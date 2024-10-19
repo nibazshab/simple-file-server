@@ -71,7 +71,7 @@ func fileServer(w http.ResponseWriter, req *http.Request) {
 			mUrl := path.Join(req.URL.Path, mName)
 			mTime := _f.ModTime().Format("2006-01-02 15:04:05")
 			mNameLength := max(50-len(mName), 1)
-			mSizeLength := 19
+			const mSizeLength = 19
 
 			if _f.IsDir() {
 				sn := strings.Repeat(" ", mNameLength)
