@@ -1,0 +1,34 @@
+name: Releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Build
+      run: chmod +x build.sh && ./build.sh
+
+    - name: Package
+      run: |
+        mkdir dist && tar -czvf dist/sfs-linux-amd64.tar.gz sfs
+        mv sfs.exe dist/sfs-windows-amd64.exe
+
+    - name: Upload Release
+      uses: softprops/action-gh-release@v2
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        files: dist/*
