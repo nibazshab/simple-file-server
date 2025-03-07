@@ -23,13 +23,13 @@ type info struct {
 
 func main() {
 	port := flag.String("port", "8080", "server port")
-	r := flag.String("path", "./", "server root path")
+	root := flag.String("path", "./", "server root path")
 	flag.Parse()
 
-	root, _ := filepath.Abs(*r)
-	rootfs, _ = os.OpenRoot(root)
+	*root, _ = filepath.Abs(*root)
+	rootfs, _ = os.OpenRoot(*root)
 
-	fmt.Printf("@ 0.0.0.0:%s\n@ %s\n", *port, root)
+	fmt.Printf("@ 0.0.0.0:%s\n@ %s\n", *port, *root)
 	http.HandleFunc("/", server)
 	http.ListenAndServe(":"+*port, nil)
 }
