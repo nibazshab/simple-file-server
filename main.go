@@ -56,16 +56,16 @@ func server(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fl, _ := f.Readdir(-1)
+	fd, _ := f.ReadDir(-1)
 
-	slices.SortStableFunc(fl, func(a, b os.FileInfo) int {
+	slices.SortStableFunc(fd, func(a, b os.DirEntry) int {
 		if a.IsDir() != b.IsDir() {
 			if a.IsDir() {
 				return -1
 			}
 			return 1
 		}
-		return 0
+		return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
 	})
 
 	var b strings.Builder
@@ -75,7 +75,9 @@ func server(w http.ResponseWriter, req *http.Request) {
 	b.WriteString("<hr><pre><a href=\"../\">../</a>\n")
 
 	var i info
-	for _, l := range fl {
+	for _, d := range fd {
+		l, _ := d.Info()
+
 		if l.IsDir() {
 			i.name = l.Name() + "/"
 			i.size = "-"
@@ -83,6 +85,7 @@ func server(w http.ResponseWriter, req *http.Request) {
 			i.name = l.Name()
 			i.size = strconv.FormatInt(l.Size(), 10)
 		}
+
 		i.time = l.ModTime().Format("02-Jan-2006 15:04")
 		i.i = max(51-len(i.name), 1)
 		i.j = max(20-len(i.size), 1)
