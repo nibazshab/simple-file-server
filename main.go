@@ -35,9 +35,9 @@ func main() {
 }
 
 func server(w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("%s\n", req.URL.Path)
+	fmt.Println(req.URL.Path)
 
-	p := strings.TrimPrefix(req.URL.Path, "/")
+	p := req.URL.Path[1:]
 	if p == "" {
 		p = "."
 	}
